@@ -2,19 +2,22 @@
 import crypto from 'crypto';
 import { Pool } from 'pg';
 
-let pool; // Deklarasikan pool di luar
+let pool;
 
 try {
-  // Coba inisialisasi pool koneksi
   if (!process.env.POSTGRES_URL) {
     throw new Error("Variabel POSTGRES_URL tidak ditemukan.");
   }
   pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
+    // === PENAMBAHAN UNTUK FIX SSL ===
+    ssl: {
+      rejectUnauthorized: false
+    }
+    // ============================
   });
-  console.log("Koneksi pool database berhasil diinisialisasi.");
+  console.log("Koneksi pool database berhasil diinisialisasi dengan konfigurasi SSL.");
 } catch (error) {
-  // Tangkap error jika inisialisasi gagal
   console.error("!!! GAGAL INISIALISASI DATABASE POOL:", error.message);
 }
 
@@ -31,7 +34,6 @@ function validateTelegramData(initData, botToken) {
 }
 
 export default async function handler(req, res) {
-  // Cek apakah pool gagal diinisialisasi
   if (!pool) {
     console.error("Handler dieksekusi tetapi pool database tidak tersedia.");
     return res.status(500).json({ error: 'Konfigurasi database bermasalah.' });
@@ -62,11 +64,12 @@ export default async function handler(req, res) {
     const telegram_id = userData.id;
     console.log(`Validasi berhasil untuk user ID: ${telegram_id}`);
 
-    const client = await pool.connect();
+    const client = await pool.connect(); // Baris ini yang sebelumnya error
     console.log("Berhasil terhubung ke database.");
     let userRecord;
 
     try {
+      // Anda perlu membuat tabel 'users' terlebih dahulu di database Anda
       const { rows } = await client.query('SELECT * FROM users WHERE telegram_id = $1', [telegram_id]);
       
       if (rows.length > 0) {
