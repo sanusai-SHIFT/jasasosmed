@@ -1,102 +1,101 @@
 // api/auth/telegram.js
 import crypto from 'crypto';
-import { Pool } from 'pg'; // Ganti dengan library database Anda
+import { Pool } from 'pg';
 
-// Konfigurasi koneksi database dari environment variables
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL, // Vercel akan menyediakan ini
-});
+let pool; // Deklarasikan pool di luar
 
-// Fungsi untuk memvalidasi data dari Telegram
-function validateTelegramData(initData, botToken) {
-  const params = new URLSearchParams(initData);
-  const hash = params.get('hash');
-  params.delete('hash'); // Hapus hash dari parameter untuk validasi
-
-  // Urutkan key secara alfabetis
-  const keys = Array.from(params.keys()).sort();
-  
-  // Buat data-check-string
-  const dataCheckString = keys.map(key => `${key}=${params.get(key)}`).join('\n');
-
-  // Buat secret key dari Bot Token
-  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
-
-  // Buat hash dari data-check-string
-  const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-
-  // Bandingkan hash kita dengan hash dari Telegram
-  return hmac === hash;
+try {
+  // Coba inisialisasi pool koneksi
+  if (!process.env.POSTGRES_URL) {
+    throw new Error("Variabel POSTGRES_URL tidak ditemukan.");
+  }
+  pool = new Pool({
+    connectionString: process.env.POSTGRES_URL,
+  });
+  console.log("Koneksi pool database berhasil diinisialisasi.");
+} catch (error) {
+  // Tangkap error jika inisialisasi gagal
+  console.error("!!! GAGAL INISIALISASI DATABASE POOL:", error.message);
 }
 
+// ... (Fungsi validateTelegramData tetap sama)
+function validateTelegramData(initData, botToken) {
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
+    params.delete('hash');
+    const keys = Array.from(params.keys()).sort();
+    const dataCheckString = keys.map(key => `${key}=${params.get(key)}`).join('\n');
+    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+    const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    return hmac === hash;
+}
 
-// Ini adalah handler utama untuk serverless function
 export default async function handler(req, res) {
-  // Hanya izinkan metode POST
+  // Cek apakah pool gagal diinisialisasi
+  if (!pool) {
+    console.error("Handler dieksekusi tetapi pool database tidak tersedia.");
+    return res.status(500).json({ error: 'Konfigurasi database bermasalah.' });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
+    console.log("Menerima request ke /api/auth/telegram");
     const { initData } = req.body;
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
     if (!initData || !BOT_TOKEN) {
+      console.warn("Request ditolak: initData atau BOT_TOKEN hilang.");
       return res.status(400).json({ error: 'initData and Bot Token are required' });
     }
 
-    // 1. Validasi data
     const isValid = validateTelegramData(initData, BOT_TOKEN);
     if (!isValid) {
+      console.warn("Validasi gagal: data tidak valid dari Telegram.");
       return res.status(403).json({ error: 'Invalid data from Telegram' });
     }
 
-    // 2. Ekstrak informasi pengguna
     const params = new URLSearchParams(initData);
     const userData = JSON.parse(params.get('user'));
     const telegram_id = userData.id;
+    console.log(`Validasi berhasil untuk user ID: ${telegram_id}`);
 
-    // 3. Cek ke database
     const client = await pool.connect();
+    console.log("Berhasil terhubung ke database.");
     let userRecord;
 
     try {
       const { rows } = await client.query('SELECT * FROM users WHERE telegram_id = $1', [telegram_id]);
       
       if (rows.length > 0) {
-        // 5. Jika pengguna sudah ada, ambil datanya
         userRecord = rows[0];
         console.log(`User ditemukan: ${userRecord.first_name}`);
-
       } else {
-        // 4. Jika belum ada, buat pengguna baru
+        console.log(`User dengan ID ${telegram_id} tidak ditemukan, membuat user baru...`);
         const newUserQuery = `
           INSERT INTO users (telegram_id, first_name, last_name, username, language_code, is_premium, wallet_balance)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *;
         `;
         const newUserValues = [
-          telegram_id,
-          userData.first_name || null,
-          userData.last_name || null,
-          userData.username || null,
-          userData.language_code || 'en',
-          userData.is_premium || false,
-          0 // Saldo awal dompet
+          telegram_id, userData.first_name || null, userData.last_name || null,
+          userData.username || null, userData.language_code || 'en', userData.is_premium || false, 0
         ];
         const newResult = await client.query(newUserQuery, newUserValues);
         userRecord = newResult.rows[0];
-        console.log(`User baru dibuat: ${userRecord.first_name}`);
+        console.log(`User baru berhasil dibuat: ${userRecord.first_name}`);
       }
     } finally {
-      client.release(); // Selalu lepaskan client setelah selesai
+      client.release();
+      console.log("Koneksi client dilepaskan.");
     }
 
-    // 6. Kirimkan kembali data pengguna ke frontend
     res.status(200).json(userRecord);
 
   } catch (error) {
-    console.error('Server error:', error);
+    console.error('!!! SERVER ERROR DI DALAM HANDLER:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
