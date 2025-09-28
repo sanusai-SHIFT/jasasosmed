@@ -1,72 +1,39 @@
 // src/pages/Earning.jsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { Link } from 'react-router-dom'; // Import Link
 
 const Earning = () => {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Hanya contoh, nanti bisa dibuat dinamis
+  const taskTypes = [
+    { name: "Lihat Iklan View", path: "/earning/view", color: "#fff0c2" },
+    { name: "Lihat Iklan Subscribe", path: "#", color: "#d4edda" },
+    { name: "Lihat Iklan Follow", path: "#", color: "#d1ecf1" },
+  ];
 
-  // useEffect akan berjalan sekali saat komponen dimuat
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const response = await fetch('/api/tasks');
-        if (!response.ok) {
-          throw new Error('Gagal mengambil data tugas');
-        }
-        const data = await response.json();
-        setTasks(data); // Simpan data tugas ke dalam state
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false); // Hentikan loading, baik berhasil maupun gagal
-      }
-    };
-
-    fetchTasks();
-  }, []);
-
-  const taskItemStyle = {
-    backgroundColor: 'white',
+  const itemStyle = {
     padding: '16px',
     margin: '8px 16px',
     borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    cursor: 'pointer',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+    textAlign: 'center',
+    textDecoration: 'none',
+    color: 'black',
+    display: 'block',
+    fontWeight: '500'
   };
-
-  const rewardStyle = {
-    backgroundColor: '#e9f5e9',
-    color: '#28a745',
-    padding: '4px 10px',
-    borderRadius: '12px',
-    fontWeight: 'bold',
-    fontSize: '14px'
-  };
-
-  // Tampilkan pesan loading saat data sedang diambil
-  if (loading) {
-    return <div style={{ textAlign: 'center', marginTop: '40px' }}>Memuat tugas...</div>;
-  }
 
   return (
     <div style={{ padding: '10px' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>Pusat Pendapatan</h1>
-      
-      {tasks.length > 0 ? (
-        tasks.map(task => (
-          <div key={task.id} style={taskItemStyle}>
-            <span>{task.title}</span>
-            <span style={rewardStyle}>+Rp {task.reward}</span>
-          </div>
-        ))
-      ) : (
-        <div style={{ textAlign: 'center', marginTop: '40px', color: '#6c757d' }}>
-          Saat ini belum ada tugas yang tersedia.
-        </div>
-      )}
+      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>Pilih Jenis Tugas</h1>
+      {taskTypes.map((task) => (
+        <Link 
+          key={task.name} 
+          to={task.path} // Arahkan ke path yang sesuai
+          style={{ ...itemStyle, backgroundColor: task.color }}
+        >
+          {task.name}
+        </Link>
+      ))}
     </div>
   );
 };
