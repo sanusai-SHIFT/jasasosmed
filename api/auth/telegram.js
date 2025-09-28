@@ -3,25 +3,32 @@ import crypto from 'crypto';
 import { Pool } from 'pg';
 
 let pool;
+// Menambahkan log unik untuk verifikasi deploy
+console.log("--- [DEBUG v3] Kode SSL FIX dengan sslmode=no-verify sedang diinisialisasi ---");
+
 
 try {
-  if (!process.env.POSTGRES_URL) {
+  const connectionString = process.env.POSTGRES_URL;
+
+  if (!connectionString) {
     throw new Error("Variabel POSTGRES_URL tidak ditemukan.");
   }
+  
+  // === PERUBAHAN UTAMA: MENAMBAHKAN PARAMETER LANGSUNG ===
+  // Ini akan "memaksa" koneksi untuk tidak memverifikasi sertifikat SSL
+  const dbUrl = `${connectionString}?sslmode=no-verify`;
+
   pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    // === PENAMBAHAN UNTUK FIX SSL ===
-    ssl: {
-      rejectUnauthorized: false
-    }
-    // ============================
+    connectionString: dbUrl,
   });
-  console.log("Koneksi pool database berhasil diinisialisasi dengan konfigurasi SSL.");
+  
+  console.log("Koneksi pool database berhasil diinisialisasi dengan sslmode=no-verify.");
+
 } catch (error) {
   console.error("!!! GAGAL INISIALISASI DATABASE POOL:", error.message);
 }
 
-// ... (Fungsi validateTelegramData tetap sama)
+// ... (Fungsi validateTelegramData tetap sama, tidak perlu diubah)
 function validateTelegramData(initData, botToken) {
     const params = new URLSearchParams(initData);
     const hash = params.get('hash');
@@ -34,6 +41,9 @@ function validateTelegramData(initData, botToken) {
 }
 
 export default async function handler(req, res) {
+  // Menambahkan log unik di dalam handler
+  console.log("--- [DEBUG v3] Handler dieksekusi ---");
+
   if (!pool) {
     console.error("Handler dieksekusi tetapi pool database tidak tersedia.");
     return res.status(500).json({ error: 'Konfigurasi database bermasalah.' });
@@ -44,39 +54,33 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log("Menerima request ke /api/auth/telegram");
     const { initData } = req.body;
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
     if (!initData || !BOT_TOKEN) {
-      console.warn("Request ditolak: initData atau BOT_TOKEN hilang.");
       return res.status(400).json({ error: 'initData and Bot Token are required' });
     }
 
     const isValid = validateTelegramData(initData, BOT_TOKEN);
     if (!isValid) {
-      console.warn("Validasi gagal: data tidak valid dari Telegram.");
       return res.status(403).json({ error: 'Invalid data from Telegram' });
     }
 
     const params = new URLSearchParams(initData);
     const userData = JSON.parse(params.get('user'));
     const telegram_id = userData.id;
-    console.log(`Validasi berhasil untuk user ID: ${telegram_id}`);
 
-    const client = await pool.connect(); // Baris ini yang sebelumnya error
+    const client = await pool.connect(); // Baris ini yang error
     console.log("Berhasil terhubung ke database.");
     let userRecord;
 
     try {
-      // Anda perlu membuat tabel 'users' terlebih dahulu di database Anda
       const { rows } = await client.query('SELECT * FROM users WHERE telegram_id = $1', [telegram_id]);
       
       if (rows.length > 0) {
         userRecord = rows[0];
         console.log(`User ditemukan: ${userRecord.first_name}`);
       } else {
-        console.log(`User dengan ID ${telegram_id} tidak ditemukan, membuat user baru...`);
         const newUserQuery = `
           INSERT INTO users (telegram_id, first_name, last_name, username, language_code, is_premium, wallet_balance)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -92,13 +96,12 @@ export default async function handler(req, res) {
       }
     } finally {
       client.release();
-      console.log("Koneksi client dilepaskan.");
     }
 
     res.status(200).json(userRecord);
 
   } catch (error) {
-    console.error('!!! SERVER ERROR DI DALAM HANDLER:', error);
+    console.error('!!! SERVER ERROR DI DALAM HANDLER (v3):', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
