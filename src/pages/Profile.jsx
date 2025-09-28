@@ -1,15 +1,8 @@
 // src/pages/Profile.jsx
 import React from 'react';
 
-const Profile = () => {
-  // Data ini nantinya akan diambil dari database/API
-  const userProfile = {
-    name: "Sukron Alfan",
-    email: "sukron.alfan@example.com",
-    walletBalance: 150000, // dalam Rupiah
-    bankAccount: "BCA - 1234567890"
-  };
-
+// Terima 'user' sebagai props dari App.jsx
+const Profile = ({ user }) => {
   const profileMenu = [
     "Edit Info", "Ganti Password", "Refferal Saya", "Akun Bank", "Dompet"
   ];
@@ -33,11 +26,19 @@ const Profile = () => {
     textAlign: 'center'
   };
 
+  // Tampilkan loading atau pesan jika data user belum ada
+  if (!user) {
+    return <div>Memuat data profil...</div>;
+  }
+
+  // Tampilkan data asli dari database
   return (
     <div style={{ padding: '10px' }}>
       <div style={profileCard}>
-        <h2>{userProfile.name}</h2>
-        <p>Saldo Dompet: Rp {userProfile.walletBalance.toLocaleString('id-ID')}</p>
+        {/* Gunakan data 'user' dari props */}
+        <h2>{user.first_name || user.username}</h2>
+        <p>Saldo Dompet: Rp {user.wallet_balance.toLocaleString('id-ID')}</p>
+        <small>ID Telegram: {user.telegram_id}</small>
       </div>
 
       {profileMenu.map((menu, index) => (

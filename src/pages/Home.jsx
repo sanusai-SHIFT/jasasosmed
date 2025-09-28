@@ -1,9 +1,11 @@
 // src/pages/Home.jsx
 import React from 'react';
 
-const Home = () => {
-  // Mock data/info yang bisa ditampilkan di halaman Home
-  const welcomeMessage = "Selamat datang Sukron Alfan";
+// Terima 'user' sebagai props
+const Home = ({ user }) => {
+  // Gunakan nama user jika ada, jika tidak gunakan sapaan umum
+  const welcomeMessage = user ? `Selamat datang ${user.first_name}` : "Selamat datang";
+
   const announcements = [
     { id: 1, title: "Group Telegram Jasaview.ID", content: "Untuk mendapatkan informasi terbaru atau ingin bertanya tanya silahkan ikuti Group Telegram kami.", link: "https://t.me/example" },
     { id: 2, title: "Panduan Klik Iklan", content: "Jasaview.id menyediakan layanan baru untuk viewers agar bisa mendapatkan penghasilan yaitu Klik Iklan.", link: "/panduan/klik-iklan" },
