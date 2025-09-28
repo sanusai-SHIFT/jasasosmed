@@ -1,6 +1,8 @@
 // src/pages/earning/WatchTaskPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+// Import library captcha
+import { loadCaptchaEnginge, LoadCanvasTemplate, validateCaptcha } from 'react-simple-captcha';
 
 const WatchTaskPage = ({ user }) => {
   const { taskId } = useParams();
@@ -14,12 +16,13 @@ const WatchTaskPage = ({ user }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Untuk contoh ini, kita gunakan captcha sederhana
-  const captchaAnswer = "bvxa";
+  // Efek untuk memuat captcha saat komponen pertama kali render
+  useEffect(() => {
+    loadCaptchaEnginge(6); // Membuat captcha dengan 6 karakter
+  }, []);
 
   useEffect(() => {
-    // Ambil detail tugas dari database berdasarkan taskId
-    fetch(`/api/tasks?id=${taskId}`) // Kita perlu modif API tasks sedikit
+    fetch(`/api/tasks?id=${taskId}`)
       .then(res => res.json())
       .then(data => {
         if (data && data.length > 0) {
@@ -34,29 +37,29 @@ const WatchTaskPage = ({ user }) => {
 
   useEffect(() => {
     if (!isCaptchaVerified || timer === null || timer <= 0) return;
-
     const interval = setInterval(() => {
       setTimer(prev => prev - 1);
     }, 1000);
-
     return () => clearInterval(interval);
   }, [isCaptchaVerified, timer]);
 
-  // Ketika timer habis
   useEffect(() => {
     if (timer === 0) {
       handleCompleteTask();
     }
   }, [timer]);
 
-
   const handleVerifyCaptcha = (e) => {
     e.preventDefault();
-    if (captchaInput.toLowerCase() === captchaAnswer) {
+    // Gunakan fungsi dari library untuk validasi
+    if (validateCaptcha(captchaInput) === true) {
       setCaptchaVerified(true);
       setError('');
     } else {
       setError('Captcha salah, silakan coba lagi.');
+      // Reset input dan captcha
+      setCaptchaInput('');
+      loadCaptchaEnginge(6);
     }
   };
   
@@ -67,20 +70,16 @@ const WatchTaskPage = ({ user }) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: user.telegram_id, taskId: task.id, reward: task.reward })
         });
-
         if (!response.ok) throw new Error('Gagal mengirim hadiah.');
-        
         setSuccess(`Selamat! Anda mendapatkan Rp ${task.reward}.`);
-        setTimeout(() => navigate('/earning/view'), 3000); // Kembali setelah 3 detik
-
+        setTimeout(() => navigate('/earning/view'), 3000);
     } catch (err) {
         setError('Terjadi kesalahan saat validasi.');
     }
   };
 
-
   if (loading) return <div style={{textAlign: 'center'}}>Memuat...</div>;
-  if (error && !success) return <div style={{textAlign: 'center', color: 'red'}}>{error}</div>
+  if (error && !success) return <div style={{textAlign: 'center', color: 'red', marginTop: '20px'}}>{error}</div>
   if (success) return <div style={{textAlign: 'center', color: 'green', fontSize: '20px', marginTop: '50px'}}>{success}</div>
 
   return (
@@ -93,13 +92,16 @@ const WatchTaskPage = ({ user }) => {
       {!isCaptchaVerified ? (
         <form onSubmit={handleVerifyCaptcha} style={{ textAlign: 'center', padding: '20px', backgroundColor: 'white', borderRadius: '8px' }}>
           <h3>Masukkan kode yang terlihat</h3>
-          <img src="https://i.imgur.com/example.png" alt="captcha" style={{border: '1px solid #ccc', borderRadius: '4px'}}/>
-          {/* Ganti dengan gambar captcha asli Anda */}
+          {/* Komponen dari library untuk menampilkan captcha */}
+          <div style={{margin: '15px 0'}}>
+            <LoadCanvasTemplate />
+          </div>
           <input 
             type="text" 
+            placeholder="Ketik captcha di sini..."
             value={captchaInput} 
             onChange={(e) => setCaptchaInput(e.target.value)}
-            style={{ width: '80%', padding: '10px', margin: '10px 0', border: '1px solid #ccc', borderRadius: '4px' }}
+            style={{ width: '80%', padding: '10px', margin: '10px 0', border: '1px solid #ccc', borderRadius: '4px', textAlign: 'center' }}
           />
           <button type="submit" style={{width: '85%', padding: '12px', border: 'none', backgroundColor: '#0d6efd', color: 'white', borderRadius: '4px', cursor: 'pointer'}}>
             Validasi
