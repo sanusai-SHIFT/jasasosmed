@@ -1,13 +1,17 @@
 // src/pages/earning/WatchTaskPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-// Import library captcha
 import { loadCaptchaEnginge, LoadCanvasTemplate, validateCaptcha } from 'react-simple-captcha';
+
+// === TAMBAHKAN BARIS INI UNTUK MEMUAT CSS ===
+import 'react-simple-captcha/dist/logic/canvas-engine.css';
+// ===========================================
 
 const WatchTaskPage = ({ user }) => {
   const { taskId } = useParams();
   const navigate = useNavigate();
 
+  // ... (Sisa kode Anda tidak perlu diubah, biarkan sama seperti sebelumnya) ...
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState(null);
@@ -16,9 +20,8 @@ const WatchTaskPage = ({ user }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Efek untuk memuat captcha saat komponen pertama kali render
   useEffect(() => {
-    loadCaptchaEnginge(6); // Membuat captcha dengan 6 karakter
+    loadCaptchaEnginge(6);
   }, []);
 
   useEffect(() => {
@@ -51,13 +54,11 @@ const WatchTaskPage = ({ user }) => {
 
   const handleVerifyCaptcha = (e) => {
     e.preventDefault();
-    // Gunakan fungsi dari library untuk validasi
     if (validateCaptcha(captchaInput) === true) {
       setCaptchaVerified(true);
       setError('');
     } else {
       setError('Captcha salah, silakan coba lagi.');
-      // Reset input dan captcha
       setCaptchaInput('');
       loadCaptchaEnginge(6);
     }
@@ -92,7 +93,6 @@ const WatchTaskPage = ({ user }) => {
       {!isCaptchaVerified ? (
         <form onSubmit={handleVerifyCaptcha} style={{ textAlign: 'center', padding: '20px', backgroundColor: 'white', borderRadius: '8px' }}>
           <h3>Masukkan kode yang terlihat</h3>
-          {/* Komponen dari library untuk menampilkan captcha */}
           <div style={{margin: '15px 0'}}>
             <LoadCanvasTemplate />
           </div>
