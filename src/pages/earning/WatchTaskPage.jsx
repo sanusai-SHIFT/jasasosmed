@@ -1,28 +1,23 @@
 // src/pages/earning/WatchTaskPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { loadCaptchaEnginge, LoadCanvasTemplate, validateCaptcha } from 'react-simple-captcha';
-
-// === TAMBAHKAN BARIS INI UNTUK MEMUAT CSS ===
-import 'react-simple-captcha/dist/logic/canvas-engine.css';
-// ===========================================
+// Import library hCaptcha
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 const WatchTaskPage = ({ user }) => {
   const { taskId } = useParams();
   const navigate = useNavigate();
+  const captchaRef = useRef(null); // Ref untuk mengakses komponen HCaptcha
 
-  // ... (Sisa kode Anda tidak perlu diubah, biarkan sama seperti sebelumnya) ...
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState(null);
-  const [captchaInput, setCaptchaInput] = useState('');
   const [isCaptchaVerified, setCaptchaVerified] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    loadCaptchaEnginge(6);
-  }, []);
+  // Ambil Site Key dari environment variable
+  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
   useEffect(() => {
     fetch(`/api/tasks?id=${taskId}`)
@@ -31,18 +26,14 @@ const WatchTaskPage = ({ user }) => {
         if (data && data.length > 0) {
           setTask(data[0]);
           setTimer(data[0].duration);
-        } else {
-          setError('Tugas tidak ditemukan.');
-        }
+        } else { setError('Tugas tidak ditemukan.'); }
         setLoading(false);
       });
   }, [taskId]);
 
   useEffect(() => {
     if (!isCaptchaVerified || timer === null || timer <= 0) return;
-    const interval = setInterval(() => {
-      setTimer(prev => prev - 1);
-    }, 1000);
+    const interval = setInterval(() => setTimer(prev => prev - 1), 1000);
     return () => clearInterval(interval);
   }, [isCaptchaVerified, timer]);
 
@@ -52,15 +43,12 @@ const WatchTaskPage = ({ user }) => {
     }
   }, [timer]);
 
-  const handleVerifyCaptcha = (e) => {
-    e.preventDefault();
-    if (validateCaptcha(captchaInput) === true) {
+  const handleCaptchaVerify = (token) => {
+    // hCaptcha memberikan 'token' jika berhasil.
+    // Untuk aplikasi sederhana ini, kita anggap token ini sebagai bukti verifikasi.
+    if (token) {
       setCaptchaVerified(true);
       setError('');
-    } else {
-      setError('Captcha salah, silakan coba lagi.');
-      setCaptchaInput('');
-      loadCaptchaEnginge(6);
     }
   };
   
@@ -86,27 +74,21 @@ const WatchTaskPage = ({ user }) => {
   return (
     <div style={{ padding: '10px' }}>
       <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '8px', marginBottom: '16px' }}>
-        <h2>{task.title}</h2>
+        <h2>{task?.title || 'Memuat...'}</h2>
         {isCaptchaVerified && <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{timer} Detik</div>}
       </div>
 
       {!isCaptchaVerified ? (
-        <form onSubmit={handleVerifyCaptcha} style={{ textAlign: 'center', padding: '20px', backgroundColor: 'white', borderRadius: '8px' }}>
-          <h3>Masukkan kode yang terlihat</h3>
-          <div style={{margin: '15px 0'}}>
-            <LoadCanvasTemplate />
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <h3>Silakan verifikasi Anda bukan robot</h3>
+          <div style={{ margin: '15px 0' }}>
+            <HCaptcha
+              sitekey={hcaptchaSiteKey}
+              onVerify={handleCaptchaVerify}
+              ref={captchaRef}
+            />
           </div>
-          <input 
-            type="text" 
-            placeholder="Ketik captcha di sini..."
-            value={captchaInput} 
-            onChange={(e) => setCaptchaInput(e.target.value)}
-            style={{ width: '80%', padding: '10px', margin: '10px 0', border: '1px solid #ccc', borderRadius: '4px', textAlign: 'center' }}
-          />
-          <button type="submit" style={{width: '85%', padding: '12px', border: 'none', backgroundColor: '#0d6efd', color: 'white', borderRadius: '4px', cursor: 'pointer'}}>
-            Validasi
-          </button>
-        </form>
+        </div>
       ) : (
         <iframe 
           src={task.url} 
